@@ -1,0 +1,2045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>VibeSight AI Camera</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+      background: #f4f7fb;
+      color: #172033;
+    }
+
+    header {
+      background: linear-gradient(135deg, #111827, #243b64);
+      color: white;
+      padding: 24px 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 32px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      opacity: 0.85;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 21px;
+    }
+
+    /* Camera */
+
+    .camera-container {
+      position: relative;
+      background: #000;
+      border-radius: 14px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+    }
+
+    #webcam-view {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scaleX(-1);
+    }
+
+    .camera-status {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      padding: 7px 12px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      font-size: 13px;
+    }
+
+    .camera-status.connected {
+      background: rgba(16, 120, 70, 0.9);
+    }
+
+    .camera-status.error {
+      background: rgba(170, 30, 30, 0.9);
+    }
+
+    /* Controls */
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button,
+    select {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    button {
+      background: #1d4ed8;
+      color: white;
+      font-weight: 600;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #172033;
+    }
+
+    .danger {
+      background: #dc2626;
+    }
+
+    .success {
+      background: #15803d;
+    }
+
+    .dark {
+      background: #111827;
+    }
+
+    select {
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      color: #172033;
+    }
+
+    /* Mode */
+
+    .mode-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .mode-button {
+      background: #eef2ff;
+      color: #3730a3;
+      border: 2px solid transparent;
+    }
+
+    .mode-button.active {
+      background: #1d4ed8;
+      color: white;
+      border-color: #1d4ed8;
+    }
+
+    .auto-controls {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .auto-controls.visible {
+      display: flex;
+    }
+
+    .auto-status {
+      width: 100%;
+      font-size: 14px;
+      color: #166534;
+      font-weight: 600;
+    }
+
+    .pulse {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      background: #dc2626;
+      border-radius: 50%;
+      margin-right: 7px;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.35;
+        transform: scale(0.75);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* Snapshot */
+
+    #snapshot-preview {
+      width: 100%;
+      border-radius: 12px;
+      display: none;
+      margin-top: 15px;
+    }
+
+    /* Analysis */
+
+    .analysis-box {
+      min-height: 220px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      line-height: 1.6;
+      overflow-wrap: break-word;
+    }
+
+    .placeholder {
+      color: #64748b;
+      text-align: center;
+      padding: 50px 20px;
+    }
+
+    .loading {
+      text-align: center;
+      color: #1d4ed8;
+      font-weight: 600;
+      padding: 30px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 4px solid #dbeafe;
+      border-top-color: #1d4ed8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* API Key */
+
+    .api-key-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .api-key-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    /* Diagnostics */
+
+    details {
+      margin-top: 16px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    #diagnostics {
+      background: #111827;
+      color: #d1d5db;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+
+    /* History */
+
+    .history-item {
+      border-left: 4px solid #1d4ed8;
+      background: #f8fafc;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .history-time {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 5px;
+    }
+
+    .history-text {
+      font-size: 14px;
+    }
+
+    /* Footer */
+
+    footer {
+      text-align: center;
+      padding: 25px;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    @media (max-width: 850px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .container {
+        padding: 15px;
+      }
+
+      header h1 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>📷 VibeSight AI</h1>
+    <p>See the world through AI</p>
+  </header>
+
+  <main class="container">
+
+    <div class="grid">
+
+      <!-- LEFT COLUMN -->
+      <section>
+
+        <div class="card">
+          <h2>📹 Live Camera</h2>
+
+          <div class="camera-container">
+            <video
+              id="webcam-view"
+              autoplay
+              playsinline
+              muted>
+            </video>
+
+            <div
+              id="camera-status"
+              class="camera-status">
+              Camera not connected
+            </div>
+          </div>
+
+          <div class="controls">
+            <button
+              id="start-camera-btn"
+              onclick="startCamera()">
+              📷 Start Camera
+            </button>
+
+            <button
+              id="stop-camera-btn"
+              class="danger"
+              onclick="stopCamera()"
+              disabled>
+              ⏹ Stop Camera
+            </button>
+          </div>
+        </div>
+
+
+        <!-- ANALYSIS MODE -->
+        <div class="card">
+
+          <h2>🤖 AI Analysis Mode</h2>
+
+          <div class="mode-selector">
+
+            <button
+              id="manual-mode-btn"
+              class="mode-button active"
+              onclick="setMode('manual')">
+              📸 Manual Snapshot
+            </button>
+
+            <button
+              id="auto-mode-btn"
+              class="mode-button"
+              onclick="setMode('auto')">
+              🔴 Auto Analysis
+            </button>
+
+          </div>
+
+
+          <!-- MANUAL CONTROLS -->
+
+          <div id="manual-controls">
+
+            <p>
+              Capture a snapshot from the live camera and send it
+              to Gemini Vision for analysis.
+            </p>
+
+            <div class="controls">
+
+              <button
+                id="snapshot-btn"
+                onclick="captureAndAnalyzeFrame()"
+                disabled>
+                📸 Take Snapshot & Analyze
+              </button>
+
+              <button
+                class="secondary"
+                onclick="uploadImage()">
+                🖼️ Upload Image
+              </button>
+
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                hidden
+                onchange="handleImageUpload(event)"
+              />
+
+            </div>
+
+          </div>
+
+
+          <!-- AUTO CONTROLS -->
+
+          <div
+            id="auto-controls"
+            class="auto-controls">
+
+            <div class="auto-status">
+              <span id="auto-indicator"></span>
+              <span id="auto-status-text">
+                Auto Analysis is stopped.
+              </span>
+            </div>
+
+            <label for="interval-select">
+              Analyze every:
+            </label>
+
+            <select id="interval-select">
+
+              <option value="1">
+                1 second
+              </option>
+
+              <option value="2">
+                2 seconds
+              </option>
+
+              <option value="5" selected>
+                5 seconds
+              </option>
+
+              <option value="10">
+                10 seconds
+              </option>
+
+            </select>
+
+            <button
+              id="start-auto-btn"
+              class="success"
+              onclick="startAutoAnalysis()"
+              disabled>
+              ▶ Start Auto Analysis
+            </button>
+
+            <button
+              id="stop-auto-btn"
+              class="danger"
+              onclick="stopAutoAnalysis()"
+              disabled>
+              ⏹ Stop Auto Analysis
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- SNAPSHOT -->
+        <div class="card">
+
+          <h2>🖼️ Latest Snapshot</h2>
+
+          <img
+            id="snapshot-preview"
+            alt="Latest camera snapshot"
+          />
+
+          <div
+            id="snapshot-placeholder"
+            class="placeholder">
+
+            No snapshot yet.
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- RIGHT COLUMN -->
+      <section>
+
+        <!-- API KEY -->
+
+        <div class="card">
+
+          <h2>🔑 Gemini API Key</h2>
+
+          <p>
+            Enter your Gemini API key to enable AI image analysis.
+            The key is stored only in this browser's local storage.
+          </p>
+
+          <div class="api-key-row">
+
+            <input
+              id="api-key"
+              type="password"
+              placeholder="Enter Gemini API key"
+            />
+
+            <button
+              onclick="saveApiKey()">
+              Save
+            </button>
+
+          </div>
+
+          <div class="controls">
+
+            <button
+              class="secondary"
+              onclick="clearApiKey()">
+              Clear Key
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- AI RESULT -->
+
+        <div class="card">
+
+          <h2>✨ AI Analysis</h2>
+
+          <div
+            id="analysis-result"
+            class="analysis-box">
+
+            <div class="placeholder">
+              AI analysis will appear here.
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- HISTORY -->
+
+        <div class="card">
+
+          <h2>📝 Analysis History</h2>
+
+          <div id="history">
+
+            <div class="placeholder">
+              No analysis yet.
+            </div>
+
+          </div>
+
+          <button
+            class="secondary"
+            onclick="clearHistory()">
+            Clear History
+          </button>
+
+        </div>
+
+
+        <!-- DIAGNOSTICS -->
+
+        <div class="card">
+
+          <h2>🔧 Camera Diagnostics</h2>
+
+          <p>
+            If your Mac cannot access the camera, open this section
+            and check the information below.
+          </p>
+
+          <button
+            class="secondary"
+            onclick="runDiagnostics()">
+            Run Diagnostics
+          </button>
+
+          <details>
+
+            <summary>
+              Show diagnostic information
+            </summary>
+
+            <div id="diagnostics">
+              No diagnostics run yet.
+            </div>
+
+          </details>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+
+  <footer>
+    VibeSight AI Camera · AI-powered visual exploration
+  </footer>
+
+
+  <script>
+
+    /* =========================================================
+       CONFIGURATION
+    ========================================================= */
+
+    const CONFIG = {
+
+      /*
+       * Change this model if you use a different Gemini model.
+       */
+      GEMINI_MODEL: "gemini-3-flash-preview",
+
+      /*
+       * Maximum number of history items.
+       */
+      MAX_HISTORY: 10
+
+    };
+
+
+    /* =========================================================
+       GLOBAL VARIABLES
+    ========================================================= */
+
+    let cameraStream = null;
+
+    let currentMode = "manual";
+
+    let autoAnalysisTimer = null;
+
+    let autoAnalysisRunning = false;
+
+    /*
+     * Prevent multiple Gemini requests from running at
+     * the same time.
+     */
+    let analysisInProgress = false;
+
+
+    /* =========================================================
+       ELEMENTS
+    ========================================================= */
+
+    const video =
+      document.getElementById("webcam-view");
+
+    const cameraStatus =
+      document.getElementById("camera-status");
+
+    const startCameraButton =
+      document.getElementById("start-camera-btn");
+
+    const stopCameraButton =
+      document.getElementById("stop-camera-btn");
+
+    const snapshotButton =
+      document.getElementById("snapshot-btn");
+
+    const snapshotPreview =
+      document.getElementById("snapshot-preview");
+
+    const snapshotPlaceholder =
+      document.getElementById("snapshot-placeholder");
+
+    const analysisResult =
+      document.getElementById("analysis-result");
+
+    const historyContainer =
+      document.getElementById("history");
+
+    const apiKeyInput =
+      document.getElementById("api-key");
+
+    const manualModeButton =
+      document.getElementById("manual-mode-btn");
+
+    const autoModeButton =
+      document.getElementById("auto-mode-btn");
+
+    const manualControls =
+      document.getElementById("manual-controls");
+
+    const autoControls =
+      document.getElementById("auto-controls");
+
+    const intervalSelect =
+      document.getElementById("interval-select");
+
+    const startAutoButton =
+      document.getElementById("start-auto-btn");
+
+    const stopAutoButton =
+      document.getElementById("stop-auto-btn");
+
+    const autoStatusText =
+      document.getElementById("auto-status-text");
+
+    const autoIndicator =
+      document.getElementById("auto-indicator");
+
+
+    /* =========================================================
+       INITIALIZATION
+    ========================================================= */
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+
+        const savedKey =
+          localStorage.getItem("vibesight_gemini_api_key");
+
+        if (savedKey) {
+          apiKeyInput.value = savedKey;
+        }
+
+        loadHistory();
+
+        updateButtons();
+
+      }
+    );
+
+
+    /* =========================================================
+       API KEY
+    ========================================================= */
+
+    function saveApiKey() {
+
+      const key =
+        apiKeyInput.value.trim();
+
+      if (!key) {
+
+        alert("Please enter a Gemini API key.");
+
+        return;
+      }
+
+      localStorage.setItem(
+        "vibesight_gemini_api_key",
+        key
+      );
+
+      alert("Gemini API key saved in this browser.");
+
+    }
+
+
+    function clearApiKey() {
+
+      localStorage.removeItem(
+        "vibesight_gemini_api_key"
+      );
+
+      apiKeyInput.value = "";
+
+      alert("Gemini API key removed.");
+
+    }
+
+
+    function getApiKey() {
+
+      return (
+        apiKeyInput.value.trim() ||
+        localStorage.getItem(
+          "vibesight_gemini_api_key"
+        ) ||
+        ""
+      );
+
+    }
+
+
+    /* =========================================================
+       CAMERA
+    ========================================================= */
+
+    async function startCamera() {
+
+      try {
+
+        /*
+         * Stop any previous stream first.
+         */
+        stopCamera(false);
+
+
+        if (!navigator.mediaDevices) {
+
+          throw new Error(
+            "Camera API is not available in this browser."
+          );
+
+        }
+
+
+        if (!navigator.mediaDevices.getUserMedia) {
+
+          throw new Error(
+            "getUserMedia is not available."
+          );
+
+        }
+
+
+        /*
+         * Simple camera request.
+         *
+         * This is intentionally simple because some Macs
+         * have problems with overly specific constraints.
+         */
+
+        cameraStream =
+          await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+
+
+        video.srcObject =
+          cameraStream;
+
+
+        await video.play();
+
+
+        cameraStatus.textContent =
+          "● Camera connected";
+
+        cameraStatus.className =
+          "camera-status connected";
+
+
+        startCameraButton.disabled =
+          true;
+
+        stopCameraButton.disabled =
+          false;
+
+        snapshotButton.disabled =
+          false;
+
+        startAutoButton.disabled =
+          false;
+
+
+        updateButtons();
+
+
+      } catch (error) {
+
+        console.error(
+          "Camera error:",
+          error
+        );
+
+
+        cameraStatus.textContent =
+          "Camera unavailable";
+
+        cameraStatus.className =
+          "camera-status error";
+
+
+        let message =
+          "Unable to access the camera.\n\n";
+
+
+        if (error.name === "NotAllowedError") {
+
+          message +=
+            "Camera permission was denied. " +
+            "Check your browser and macOS camera permissions.";
+
+        } else if (
+          error.name === "NotFoundError"
+        ) {
+
+          message +=
+            "No camera was found.";
+
+        } else if (
+          error.name === "NotReadableError"
+        ) {
+
+          message +=
+            "The camera may already be in use by another application.";
+
+        } else {
+
+          message += error.message;
+
+        }
+
+
+        alert(message);
+
+      }
+
+    }
+
+
+    function stopCamera(
+      updateUI = true
+    ) {
+
+      stopAutoAnalysis();
+
+
+      if (cameraStream) {
+
+        cameraStream
+          .getTracks()
+          .forEach(track => track.stop());
+
+        cameraStream = null;
+
+      }
+
+
+      video.srcObject = null;
+
+
+      if (updateUI) {
+
+        cameraStatus.textContent =
+          "Camera stopped";
+
+        cameraStatus.className =
+          "camera-status";
+
+
+        startCameraButton.disabled =
+          false;
+
+        stopCameraButton.disabled =
+          true;
+
+        snapshotButton.disabled =
+          true;
+
+        startAutoButton.disabled =
+          true;
+
+      }
+
+    }
+
+
+    /* =========================================================
+       MODE
+    ========================================================= */
+
+    function setMode(mode) {
+
+      /*
+       * Stop automatic analysis whenever the mode changes.
+       */
+
+      stopAutoAnalysis();
+
+
+      currentMode = mode;
+
+
+      if (mode === "manual") {
+
+        manualModeButton.classList.add(
+          "active"
+        );
+
+        autoModeButton.classList.remove(
+          "active"
+        );
+
+        manualControls.style.display =
+          "block";
+
+        autoControls.classList.remove(
+          "visible"
+        );
+
+      } else {
+
+        manualModeButton.classList.remove(
+          "active"
+        );
+
+        autoModeButton.classList.add(
+          "active"
+        );
+
+        manualControls.style.display =
+          "none";
+
+        autoControls.classList.add(
+          "visible"
+        );
+
+      }
+
+
+      updateButtons();
+
+    }
+
+
+    /* =========================================================
+       CAPTURE FRAME
+    ========================================================= */
+
+    function captureFrame() {
+
+      if (!video.videoWidth || !video.videoHeight) {
+
+        throw new Error(
+          "The camera is not ready yet."
+        );
+
+      }
+
+
+      const canvas =
+        document.createElement("canvas");
+
+
+      canvas.width =
+        video.videoWidth;
+
+      canvas.height =
+        video.videoHeight;
+
+
+      const context =
+        canvas.getContext("2d");
+
+
+      /*
+       * The live preview is mirrored, but the captured
+       * image should be normal.
+       */
+
+      context.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+
+      return canvas;
+
+    }
+
+
+    /* =========================================================
+       MANUAL SNAPSHOT
+    ========================================================= */
+
+    async function captureAndAnalyzeFrame() {
+
+      if (analysisInProgress) {
+
+        return;
+
+      }
+
+
+      if (!cameraStream) {
+
+        alert(
+          "Please start the camera first."
+        );
+
+        return;
+
+      }
+
+
+      const apiKey =
+        getApiKey();
+
+
+      if (!apiKey) {
+
+        alert(
+          "Please enter and save your Gemini API key first."
+        );
+
+        return;
+
+      }
+
+
+      analysisInProgress = true;
+
+
+      try {
+
+        const canvas =
+          captureFrame();
+
+
+        const base64Image =
+          canvas
+            .toDataURL(
+              "image/jpeg",
+              0.8
+            )
+            .split(",")[1];
+
+
+        /*
+         * Show the snapshot immediately.
+         */
+
+        snapshotPreview.src =
+          canvas.toDataURL(
+            "image/jpeg",
+            0.85
+          );
+
+        snapshotPreview.style.display =
+          "block";
+
+        snapshotPlaceholder.style.display =
+          "none";
+
+
+        await analyzeImage(
+          base64Image,
+          apiKey
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          "Snapshot error:",
+          error
+        );
+
+        showError(
+          error.message
+        );
+
+      } finally {
+
+        analysisInProgress = false;
+
+      }
+
+    }
+
+
+    /* =========================================================
+       AUTO ANALYSIS
+    ========================================================= */
+
+    function startAutoAnalysis() {
+
+      if (!cameraStream) {
+
+        alert(
+          "Please start the camera first."
+        );
+
+        return;
+
+      }
+
+
+      if (!getApiKey()) {
+
+        alert(
+          "Please enter and save your Gemini API key first."
+        );
+
+        return;
+
+      }
+
+
+      /*
+       * Stop an existing timer before starting a new one.
+       */
+
+      stopAutoAnalysis();
+
+
+      const seconds =
+        Number(intervalSelect.value);
+
+
+      autoAnalysisRunning =
+        true;
+
+
+      autoStatusText.textContent =
+        `Auto Analysis is running every ${seconds} second${
+          seconds === 1 ? "" : "s"
+        }.`;
+
+      autoIndicator.innerHTML =
+        '<span class="pulse"></span>';
+
+
+      startAutoButton.disabled =
+        true;
+
+      stopAutoButton.disabled =
+        false;
+
+
+      /*
+       * Analyze immediately.
+       */
+
+      runAutoAnalysis();
+
+
+      /*
+       * Then continue at the selected interval.
+       */
+
+      autoAnalysisTimer =
+        setInterval(
+          runAutoAnalysis,
+          seconds * 1000
+        );
+
+    }
+
+
+    function stopAutoAnalysis() {
+
+      if (autoAnalysisTimer) {
+
+        clearInterval(
+          autoAnalysisTimer
+        );
+
+        autoAnalysisTimer = null;
+
+      }
+
+
+      autoAnalysisRunning =
+        false;
+
+
+      autoStatusText.textContent =
+        "Auto Analysis is stopped.";
+
+      autoIndicator.innerHTML =
+        "";
+
+
+      startAutoButton.disabled =
+        !cameraStream;
+
+      stopAutoButton.disabled =
+        true;
+
+    }
+
+
+    async function runAutoAnalysis() {
+
+      /*
+       * Do not start another Gemini request if the previous
+       * request is still running.
+       */
+
+      if (analysisInProgress) {
+
+        console.log(
+          "Previous analysis is still running."
+        );
+
+        return;
+
+      }
+
+
+      if (!cameraStream) {
+
+        stopAutoAnalysis();
+
+        return;
+
+      }
+
+
+      await captureAndAnalyzeFrame();
+
+    }
+
+
+    /* =========================================================
+       GEMINI VISION
+    ========================================================= */
+
+    async function analyzeImage(
+      base64Image,
+      apiKey
+    ) {
+
+      analysisInProgress = true;
+
+
+      showLoading();
+
+
+      try {
+
+        const endpoint =
+          `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+
+        const prompt = `
+Analyze this image as a visual AI assistant.
+
+Describe what you can see clearly and accurately.
+
+Focus on:
+- Main objects
+- People, if visible
+- Environment or setting
+- Important text, if readable
+- Interesting details
+- Possible actions or activities
+
+Do not invent details that cannot be determined from the image.
+
+Keep the response concise and useful for a classroom demonstration.
+        `.trim();
+
+
+        const requestBody = {
+
+          contents: [
+
+            {
+
+              parts: [
+
+                {
+                  text: prompt
+                },
+
+                {
+
+                  inline_data: {
+
+                    mime_type:
+                      "image/jpeg",
+
+                    data:
+                      base64Image
+
+                  }
+
+                }
+
+              ]
+
+            }
+
+          ]
+
+        };
+
+
+        const response =
+          await fetch(
+            endpoint,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body:
+                JSON.stringify(
+                  requestBody
+                )
+
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (!response.ok) {
+
+          console.error(
+            "Gemini API error:",
+            data
+          );
+
+
+          throw new Error(
+            data?.error?.message ||
+            `Gemini API error: ${response.status}`
+          );
+
+        }
+
+
+        const text =
+          extractGeminiText(data);
+
+
+        if (!text) {
+
+          throw new Error(
+            "Gemini returned no analysis."
+          );
+
+        }
+
+
+        showAnalysis(text);
+
+
+        addHistory(text);
+
+
+      } finally {
+
+        /*
+         * The caller also protects against overlapping
+         * requests, but this ensures the flag is reset.
+         */
+
+      }
+
+    }
+
+
+    function extractGeminiText(data) {
+
+      try {
+
+        const candidates =
+          data.candidates;
+
+
+        if (
+          !candidates ||
+          candidates.length === 0
+        ) {
+
+          return "";
+
+        }
+
+
+        return candidates
+          .map(candidate => {
+
+            const parts =
+              candidate?.content?.parts || [];
+
+
+            return parts
+              .map(part => part.text || "")
+              .join("");
+
+          })
+          .join("\n")
+          .trim();
+
+      } catch (error) {
+
+        console.error(
+          "Could not extract Gemini response:",
+          error
+        );
+
+        return "";
+
+      }
+
+    }
+
+
+    /* =========================================================
+       UPLOAD IMAGE
+    ========================================================= */
+
+    function uploadImage() {
+
+      document
+        .getElementById("image-upload")
+        .click();
+
+    }
+
+
+    async function handleImageUpload(event) {
+
+      const file =
+        event.target.files[0];
+
+
+      if (!file) {
+
+        return;
+
+      }
+
+
+      const apiKey =
+        getApiKey();
+
+
+      if (!apiKey) {
+
+        alert(
+          "Please enter and save your Gemini API key first."
+        );
+
+        return;
+
+      }
+
+
+      try {
+
+        const reader =
+          new FileReader();
+
+
+        reader.onload = async function () {
+
+          const result =
+            reader.result;
+
+
+          snapshotPreview.src =
+            result;
+
+          snapshotPreview.style.display =
+            "block";
+
+          snapshotPlaceholder.style.display =
+            "none";
+
+
+          const base64Image =
+            result.split(",")[1];
+
+
+          await analyzeImage(
+            base64Image,
+            apiKey
+          );
+
+        };
+
+
+        reader.readAsDataURL(file);
+
+
+      } catch (error) {
+
+        showError(
+          error.message
+        );
+
+      }
+
+
+      /*
+       * Allow the same file to be selected again later.
+       */
+
+      event.target.value = "";
+
+    }
+
+
+    /* =========================================================
+       ANALYSIS UI
+    ========================================================= */
+
+    function showLoading() {
+
+      analysisResult.innerHTML = `
+
+        <div class="loading">
+
+          <div class="spinner"></div>
+
+          <div>
+            Gemini is analyzing the image...
+          </div>
+
+        </div>
+
+      `;
+
+    }
+
+
+    function showAnalysis(text) {
+
+      analysisResult.innerHTML =
+        formatText(text);
+
+    }
+
+
+    function showError(message) {
+
+      analysisResult.innerHTML = `
+
+        <div style="
+          color:#b91c1c;
+          background:#fef2f2;
+          padding:15px;
+          border-radius:10px;
+        ">
+
+          <strong>⚠️ Error</strong>
+
+          <p>${escapeHtml(message)}</p>
+
+        </div>
+
+      `;
+
+    }
+
+
+    /*
+     * Simple Markdown-like formatting.
+     */
+
+    function formatText(text) {
+
+      let html =
+        escapeHtml(text);
+
+
+      html =
+        html.replace(
+          /\*\*(.*?)\*\*/g,
+          "<strong>$1</strong>"
+        );
+
+
+      html =
+        html.replace(
+          /\n/g,
+          "<br>"
+        );
+
+
+      return html;
+
+    }
+
+
+    function escapeHtml(text) {
+
+      const div =
+        document.createElement("div");
+
+
+      div.textContent =
+        text;
+
+
+      return div.innerHTML;
+
+    }
+
+
+    /* =========================================================
+       HISTORY
+    ========================================================= */
+
+    function addHistory(text) {
+
+      const history =
+        JSON.parse(
+          localStorage.getItem(
+            "vibesight_history"
+          ) || "[]"
+        );
+
+
+      history.unshift({
+
+        time:
+          new Date().toLocaleString(),
+
+        text
+
+      });
+
+
+      if (
+        history.length >
+        CONFIG.MAX_HISTORY
+      ) {
+
+        history.splice(
+          CONFIG.MAX_HISTORY
+        );
+
+      }
+
+
+      localStorage.setItem(
+        "vibesight_history",
+        JSON.stringify(history)
+      );
+
+
+      displayHistory(
+        history
+      );
+
+    }
+
+
+    function loadHistory() {
+
+      const history =
+        JSON.parse(
+          localStorage.getItem(
+            "vibesight_history"
+          ) || "[]"
+        );
+
+
+      displayHistory(
+        history
+      );
+
+    }
+
+
+    function displayHistory(
+      history
+    ) {
+
+      if (
+        !history ||
+        history.length === 0
+      ) {
+
+        historyContainer.innerHTML = `
+
+          <div class="placeholder">
+            No analysis yet.
+          </div>
+
+        `;
+
+        return;
+
+      }
+
+
+      historyContainer.innerHTML =
+        history
+          .map(item => `
+
+            <div class="history-item">
+
+              <div class="history-time">
+                ${escapeHtml(item.time)}
+              </div>
+
+              <div class="history-text">
+                ${formatText(item.text)}
+              </div>
+
+            </div>
+
+          `)
+          .join("");
+
+    }
+
+
+    function clearHistory() {
+
+      localStorage.removeItem(
+        "vibesight_history"
+      );
+
+
+      displayHistory([]);
+
+    }
+
+
+    /* =========================================================
+       BUTTON STATE
+    ========================================================= */
+
+    function updateButtons() {
+
+      const cameraReady =
+        !!cameraStream;
+
+
+      snapshotButton.disabled =
+        !cameraReady;
+
+
+      startAutoButton.disabled =
+        !cameraReady ||
+        autoAnalysisRunning;
+
+
+      stopAutoButton.disabled =
+        !autoAnalysisRunning;
+
+    }
+
+
+    /* =========================================================
+       CAMERA DIAGNOSTICS
+    ========================================================= */
+
+    function runDiagnostics() {
+
+      const lines = [];
+
+
+      lines.push(
+        "VibeSight AI Camera Diagnostics"
+      );
+
+      lines.push(
+        "================================"
+      );
+
+
+      lines.push(
+        `URL: ${window.location.href}`
+      );
+
+
+      lines.push(
+        `Protocol: ${window.location.protocol}`
+      );
+
+
+      lines.push(
+        `Secure Context: ${window.isSecureContext}`
+      );
+
+
+      lines.push(
+        `Browser: ${navigator.userAgent}`
+      );
+
+
+      lines.push(
+        `MediaDevices: ${!!navigator.mediaDevices}`
+      );
+
+
+      lines.push(
+        `getUserMedia: ${
+          !!(
+            navigator.mediaDevices &&
+            navigator.mediaDevices.getUserMedia
+          )
+        }`
+      );
+
+
+      lines.push(
+        `Embedded iframe: ${
+          window.top !== window.self
+        }`
+      );
+
+
+      lines.push(
+        `Camera Stream Active: ${
+          !!cameraStream
+        }`
+      );
+
+
+      lines.push(
+        `Current Mode: ${currentMode}`
+      );
+
+
+      lines.push(
+        `Auto Analysis Running: ${
+          autoAnalysisRunning
+        }`
+      );
+
+
+      lines.push(
+        `Gemini API Key Saved: ${
+          !!getApiKey()
+        }`
+      );
+
+
+      document.getElementById(
+        "diagnostics"
+      ).textContent =
+        lines.join("\n");
+
+    }
+
+
+    /* =========================================================
+       PAGE CLEANUP
+    ========================================================= */
+
+    window.addEventListener(
+      "beforeunload",
+      () => {
+
+        stopAutoAnalysis();
+
+        if (cameraStream) {
+
+          cameraStream
+            .getTracks()
+            .forEach(track =>
+              track.stop()
+            );
+
+        }
+
+      }
+    );
+
+  </script>
+
+</body>
+</html>
